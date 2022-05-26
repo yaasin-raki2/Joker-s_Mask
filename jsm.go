@@ -3,14 +3,26 @@ package jsm
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"log"
+	"os"
+	"strconv"
 )
 
 const version = "1.0.0"
 
 type Jsm struct {
-	AppName string
-	Debug   bool
-	Version string
+	AppName  string
+	Debug    bool
+	Version  string
+	RootPath string
+	ErrorLog *log.Logger
+	InfoLog  *log.Logger
+	config   config
+}
+
+type config struct {
+	port     string
+	renderer string
 }
 
 func (j *Jsm) New(rootPath string) error {
@@ -36,6 +48,23 @@ func (j *Jsm) New(rootPath string) error {
 		return err
 	}
 
+	//create loggers
+	infoLog, errorLog := j.startLoggers()
+	j.InfoLog = infoLog
+	j.ErrorLog = errorLog
+
+	j.Version = version
+	j.RootPath = rootPath
+	j.Debug, err = strconv.ParseBool(os.Getenv("DEBUG"))
+	if err != nil {
+		return err
+	}
+
+	j.config = config{
+		port:     os.Getenv("PORT"),
+		renderer: os.Getenv("RENDERER"),
+	}
+
 	return nil
 }
 
@@ -58,4 +87,14 @@ func (j *Jsm) checkDotenv(path string) error {
 		return err
 	}
 	return nil
+}
+
+func (j *Jsm) startLoggers() (*log.Logger, *log.Logger) {
+	var infoLog *log.Logger
+	var errorLog *log.Logger
+
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	return infoLog, errorLog
 }
