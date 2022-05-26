@@ -2,10 +2,13 @@ package jsm
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 const version = "1.0.0"
@@ -17,6 +20,7 @@ type Jsm struct {
 	RootPath string
 	ErrorLog *log.Logger
 	InfoLog  *log.Logger
+	Routes   *chi.Mux
 	config   config
 }
 
@@ -55,6 +59,7 @@ func (j *Jsm) New(rootPath string) error {
 
 	j.Version = version
 	j.RootPath = rootPath
+	j.Routes = j.routes().(*chi.Mux)
 	j.Debug, err = strconv.ParseBool(os.Getenv("DEBUG"))
 	if err != nil {
 		return err
@@ -68,17 +73,35 @@ func (j *Jsm) New(rootPath string) error {
 	return nil
 }
 
+// Init creates necessary folders for your JSM application
 func (j *Jsm) Init(p initPaths) error {
-	//root := p.rootPath
+	root := p.rootPath
 
 	for _, path := range p.folderNames {
 		//create folder if it doesn't exist
-		err := j.CreateDirIfNotExist(path)
+		err := j.CreateDirIfNotExist(root + "/" + path)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ListenAndServe starts the webserver
+func (j *Jsm) ListenAndServe() {
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%s", j.config.port),
+		ErrorLog:     j.ErrorLog,
+		Handler:      j.Routes,
+		IdleTimeout:  30 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 600 * time.Second,
+	}
+	j.InfoLog.Printf("Listening on port %s\n", j.config.port)
+	err := srv.ListenAndServe()
+	if err != nil {
+		j.ErrorLog.Fatal(err)
+	}
 }
 
 func (j *Jsm) checkDotenv(path string) error {
