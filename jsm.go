@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/yaasin-raki2/Joker-s_Mask/render"
 	"log"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ type Jsm struct {
 	ErrorLog *log.Logger
 	InfoLog  *log.Logger
 	Routes   *chi.Mux
+	Render   *render.Render
 	config   config
 }
 
@@ -69,6 +71,8 @@ func (j *Jsm) New(rootPath string) error {
 		port:     os.Getenv("PORT"),
 		renderer: os.Getenv("RENDERER"),
 	}
+
+	j.Render = j.createRenderer()
 
 	return nil
 }
@@ -120,4 +124,13 @@ func (j *Jsm) startLoggers() (*log.Logger, *log.Logger) {
 	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	return infoLog, errorLog
+}
+
+func (j *Jsm) createRenderer() *render.Render {
+	myRenderer := &render.Render{
+		Renderer: j.config.renderer,
+		RootPath: j.RootPath,
+		Port:     j.config.port,
+	}
+	return myRenderer
 }
