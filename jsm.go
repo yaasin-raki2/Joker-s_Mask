@@ -2,6 +2,7 @@ package jsm
 
 import (
 	"fmt"
+	"github.com/CloudyKit/jet/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/yaasin-raki2/Joker-s_Mask/render"
@@ -23,6 +24,7 @@ type Jsm struct {
 	InfoLog  *log.Logger
 	Routes   *chi.Mux
 	Render   *render.Render
+	JetViews *jet.Set
 	config   config
 }
 
@@ -72,7 +74,10 @@ func (j *Jsm) New(rootPath string) error {
 		renderer: os.Getenv("RENDERER"),
 	}
 
-	j.Render = j.createRenderer()
+	j.JetViews = jet.NewSet(jet.NewOSFileSystemLoader(
+		fmt.Sprintf("%s/views", rootPath)), jet.InDevelopmentMode())
+
+	j.createRenderer()
 
 	return nil
 }
@@ -126,11 +131,11 @@ func (j *Jsm) startLoggers() (*log.Logger, *log.Logger) {
 	return infoLog, errorLog
 }
 
-func (j *Jsm) createRenderer() *render.Render {
-	myRenderer := &render.Render{
+func (j *Jsm) createRenderer() {
+	j.Render = &render.Render{
 		Renderer: j.config.renderer,
 		RootPath: j.RootPath,
 		Port:     j.config.port,
+		JetViews: j.JetViews,
 	}
-	return myRenderer
 }
