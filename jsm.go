@@ -3,9 +3,11 @@ package jsm
 import (
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/yaasin-raki2/Joker-s_Mask/render"
+	"github.com/yaasin-raki2/Joker-s_Mask/session"
 	"log"
 	"net/http"
 	"os"
@@ -25,12 +27,15 @@ type Jsm struct {
 	Routes   *chi.Mux
 	Render   *render.Render
 	JetViews *jet.Set
+	Session  *scs.SessionManager
 	config   config
 }
 
 type config struct {
-	port     string
-	renderer string
+	port        string
+	renderer    string
+	cookie      cookieConfig
+	sessionType string
 }
 
 func (j *Jsm) New(rootPath string) error {
@@ -72,7 +77,26 @@ func (j *Jsm) New(rootPath string) error {
 	j.config = config{
 		port:     os.Getenv("PORT"),
 		renderer: os.Getenv("RENDERER"),
+		cookie: cookieConfig{
+			name:     os.Getenv("COOKIE_NAME"),
+			lifeTime: os.Getenv("COOKIE_LIFETIME"),
+			persist:  os.Getenv("COOKIE_PERSIST"),
+			secure:   os.Getenv("COOKIE_SECURE"),
+			domain:   os.Getenv("COOKIE_DOMAIN"),
+		},
+		sessionType: os.Getenv("SESSION_TYPE"),
 	}
+
+	// create a session
+	sess := session.Session{
+		CookieName:     j.config.cookie.name,
+		CookieLifeTime: j.config.cookie.lifeTime,
+		CookiePersist:  j.config.cookie.persist,
+		SessionType:    j.config.sessionType,
+		CookieDomain:   j.config.cookie.domain,
+	}
+
+	j.Session = sess.InitSession()
 
 	j.JetViews = jet.NewSet(jet.NewOSFileSystemLoader(
 		fmt.Sprintf("%s/views", rootPath)), jet.InDevelopmentMode())
