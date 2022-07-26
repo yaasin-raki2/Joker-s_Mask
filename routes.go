@@ -15,6 +15,7 @@ func (j *Jsm) routes() http.Handler {
 		mux.Use(middleware.Logger)
 	}
 	mux.Use(middleware.Recoverer)
+	mux.Use(j.SessionLoad)
 
 	return mux
 }
