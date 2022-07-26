@@ -28,6 +28,7 @@ type Jsm struct {
 	Render   *render.Render
 	JetViews *jet.Set
 	Session  *scs.SessionManager
+	DB       Database
 	config   config
 }
 
@@ -36,6 +37,7 @@ type config struct {
 	renderer    string
 	cookie      cookieConfig
 	sessionType string
+	database    databaseConfig
 }
 
 func (j *Jsm) New(rootPath string) error {
@@ -66,6 +68,19 @@ func (j *Jsm) New(rootPath string) error {
 	j.InfoLog = infoLog
 	j.ErrorLog = errorLog
 
+	//connect to database
+	if os.Getenv("DATABASE_TYPE") != "" {
+		db, err := j.OpenDB(os.Getenv("DATABASE_TYPE"), j.BuildDsn())
+		if err != nil {
+			errorLog.Println(err)
+			os.Exit(1)
+		}
+		j.DB = Database{
+			DataType: os.Getenv("DATABASE_TYPE"),
+			Pool:     db,
+		}
+	}
+
 	j.Version = version
 	j.RootPath = rootPath
 	j.Routes = j.routes().(*chi.Mux)
@@ -85,6 +100,10 @@ func (j *Jsm) New(rootPath string) error {
 			domain:   os.Getenv("COOKIE_DOMAIN"),
 		},
 		sessionType: os.Getenv("SESSION_TYPE"),
+		database: databaseConfig{
+			database: os.Getenv("DATABASE_TYPE"),
+			dsn:      j.BuildDsn(),
+		},
 	}
 
 	// create a session
@@ -130,6 +149,14 @@ func (j *Jsm) ListenAndServe() {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 600 * time.Second,
 	}
+
+	defer func() {
+		err := j.DB.Pool.Close()
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
+
 	j.InfoLog.Printf("Listening on port %s\n", j.config.port)
 	err := srv.ListenAndServe()
 	if err != nil {
@@ -162,4 +189,25 @@ func (j *Jsm) createRenderer() {
 		Port:     j.config.port,
 		JetViews: j.JetViews,
 	}
+}
+
+func (j *Jsm) BuildDsn() string {
+	var dsn string
+
+	switch os.Getenv("DATABASE_TYPE") {
+	case "postgres", "postgresql":
+		dsn = fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s timezone=UTC connect_timeout=5",
+			os.Getenv("DATABASE_HOST"),
+			os.Getenv("DATABASE_PORT"),
+			os.Getenv("DATABASE_USER"),
+			os.Getenv("DATABASE_NAME"),
+			os.Getenv("DATABASE_SSL_MODE"))
+		if os.Getenv("DATABASE_PASS") != "" {
+			dsn = fmt.Sprintf("%s password=%s", dsn, os.Getenv("DATABASE_PASS"))
+		}
+	default:
+
+	}
+
+	return dsn
 }
